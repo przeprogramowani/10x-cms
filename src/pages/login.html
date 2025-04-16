@@ -17,6 +17,7 @@
                 class="form-control"
                 id="username"
                 name="username"
+                data-testid="username-input"
                 required
               />
             </div>
@@ -27,13 +28,20 @@
                 class="form-control"
                 id="password"
                 name="password"
+                data-testid="password-input"
                 required
               />
             </div>
             <div id="loginError" class="alert alert-danger d-none" role="alert">
               Invalid username or password
             </div>
-            <button type="submit" class="btn btn-primary">Login</button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              data-testid="login-button"
+            >
+              Login
+            </button>
           </form>
         </div>
       </div>

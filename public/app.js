@@ -21,10 +21,17 @@ $(document).ready(function () {
 
   // Function to show global alerts
   window.showGlobalAlert = function (message, type) {
+    var alertType = type || "success";
+    var testId =
+      alertType === "success"
+        ? 'data-testid="notification-success"'
+        : 'data-testid="notification-' + alertType + '"';
     var $alertContainer = $(
       '<div class="alert alert-' +
-        (type || "success") +
-        ' alert-dismissible fade show text-dark" role="alert"></div>'
+        alertType +
+        ' alert-dismissible fade show text-dark" role="alert" ' +
+        testId +
+        "></div>"
     );
     $alertContainer.text(message);
     $alertContainer.append(
@@ -171,6 +178,16 @@ function initCollectionsPage() {
   $addFieldBtn.on("click", function () {
     var $newField = $(".schema-field").first().clone();
     $newField.find("input, select").val("");
+
+    // Add dynamic test-ids
+    var fieldIndex = $("#schemaFields .schema-field").length;
+    $newField
+      .find('input[name="fieldName[]"]')
+      .attr("data-testid", "field-name-input-" + fieldIndex);
+    $newField
+      .find('select[name="fieldType[]"]')
+      .attr("data-testid", "field-type-select-" + fieldIndex);
+
     $("#schemaFields").append($newField);
 
     // Initialize remove button for the new field
@@ -233,7 +250,10 @@ function initCollectionsPage() {
 
         // Create and add the new collection card to the DOM
         var collection = response.collection;
-        var collectionHtml = '<div class="col-md-4 mb-4">';
+        var collectionHtml =
+          '<div class="col-md-4 mb-4" data-testid="collection-card-' +
+          collection.id +
+          '">';
         collectionHtml += '<div class="card">';
         collectionHtml += '<div class="card-body">';
         // Add meta tag with collection ID
@@ -247,7 +267,9 @@ function initCollectionsPage() {
         collectionHtml +=
           '<a href="/collections/' +
           collection.id +
-          '" class="btn btn-primary">View Collection</a>';
+          '" class="btn btn-primary" data-testid="view-collection-button-' +
+          collection.id +
+          '">View Collection</a>';
         collectionHtml +=
           '<button class="btn btn-danger delete-collection-btn" data-id="' +
           collection.id +

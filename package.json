@@ -8,7 +8,8 @@
     "dev": "nodemon index.js",
     "test": "mocha \"src/**/*.test.js\"",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:coverage": "playwright test --coverage"
   },
   "author": "10xDevs",
   "license": "ISC",
@@ -24,6 +25,7 @@
     "superagent": "10.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.51.1",
     "@types/node": "22.14.1",
     "bower": "1.8.14",
     "chai": "4.3.4",

@@ -8,7 +8,11 @@
       <p>Manage your content collections</p>
 
       <div class="mb-4">
-        <button id="createCollectionBtn" class="btn btn-primary">
+        <button
+          id="createCollectionBtn"
+          class="btn btn-primary"
+          data-testid="create-new-collection-button"
+        >
           Create New Collection
         </button>
       </div>
@@ -27,6 +31,7 @@
   id="createCollectionModal"
   tabindex="-1"
   aria-hidden="true"
+  data-testid="new-collection-modal"
 >
   <div class="modal-dialog">
     <div class="modal-content">
@@ -50,6 +55,7 @@
               class="form-control"
               id="collectionName"
               required
+              data-testid="collection-name-input"
             />
           </div>
 
@@ -67,10 +73,15 @@
                     name="fieldName[]"
                     placeholder="Field Name"
                     required
+                    data-testid="field-name-input-0"
                   />
                 </div>
                 <div class="col-5">
-                  <select class="form-control" name="fieldType[]">
+                  <select
+                    class="form-control"
+                    name="fieldType[]"
+                    data-testid="field-type-select-0"
+                  >
                     <option value="string">Text (Short)</option>
                     <option value="text">Text (Long)</option>
                     <option value="number">Number</option>
@@ -89,6 +100,7 @@
               type="button"
               id="addFieldBtn"
               class="btn btn-sm btn-secondary mt-2"
+              data-testid="add-field-button"
             >
               Add Field
             </button>
@@ -99,7 +111,12 @@
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
           Cancel
         </button>
-        <button type="button" id="saveCollectionBtn" class="btn btn-primary">
+        <button
+          type="button"
+          id="saveCollectionBtn"
+          class="btn btn-primary"
+          data-testid="create-collection-button"
+        >
           Create Collection
         </button>
       </div>
