@@ -1,13 +1,26 @@
 import storageModule from "../storage/storage.js";
 import collectionsService from "../collections/collections.service.js";
 import httpClient from "@10xdevspl/http-client";
+import type {
+  Webhook,
+  WebhookEvent,
+  WebhookPayload,
+  Item,
+  ItemData,
+} from "../types.js";
 
-const getWebhooksForEvent = async (collectionId, eventType) => {
+const getWebhooksForEvent = async (
+  collectionId: string,
+  eventType: WebhookEvent
+): Promise<Webhook[]> => {
   const webhooks = await storageModule.getWebhooks(collectionId);
   return webhooks.filter((webhook) => webhook.events.includes(eventType));
 };
 
-const callWebhook = async (webhook, data) => {
+const callWebhook = async (
+  webhook: Webhook,
+  data: WebhookPayload
+): Promise<unknown> => {
   return await httpClient.post(webhook.url, data, {
     "Content-Type": "application/json",
     "User-Agent": "10xCMS-Webhook-Service/1.0",
@@ -15,7 +28,11 @@ const callWebhook = async (webhook, data) => {
   });
 };
 
-const notifyWebhooks = async (collectionId, eventType, data) => {
+const notifyWebhooks = async (
+  collectionId: string,
+  eventType: WebhookEvent,
+  data: ItemData | Item | { id: string }
+): Promise<void> => {
   const webhooks = await getWebhooksForEvent(collectionId, eventType);
 
   if (!webhooks || webhooks.length === 0) {
@@ -30,7 +47,7 @@ const notifyWebhooks = async (collectionId, eventType, data) => {
     return;
   }
 
-  const payload = {
+  const payload: WebhookPayload = {
     event: eventType,
     collection: {
       id: collection.id,
@@ -51,7 +68,7 @@ const notifyWebhooks = async (collectionId, eventType, data) => {
   results.forEach((result, index) => {
     if (result.status === "rejected") {
       console.error(
-        `Error calling webhook: ${webhooks[index].url}`,
+        `Error calling webhook: ${webhooks[index]?.url}`,
         result.reason
       );
     }
@@ -63,16 +80,19 @@ const notifyWebhooks = async (collectionId, eventType, data) => {
   );
 };
 
-const onItemCreated = async (collectionId, item) => {
+const onItemCreated = async (collectionId: string, item: Item): Promise<void> => {
   await notifyWebhooks(collectionId, "create", item);
 };
 
-const onItemUpdated = async (collectionId, item) => {
+const onItemUpdated = async (collectionId: string, item: Item): Promise<void> => {
   await notifyWebhooks(collectionId, "update", item);
 };
 
-const onItemDeleted = async (collectionId, itemId) => {
-  await notifyWebhooks(collectionId, "delete", {id: itemId});
+const onItemDeleted = async (
+  collectionId: string,
+  itemId: string
+): Promise<void> => {
+  await notifyWebhooks(collectionId, "delete", { id: itemId });
 };
 
 export default {

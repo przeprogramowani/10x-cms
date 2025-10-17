@@ -1,6 +1,6 @@
-import express from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
 import path from "path";
-import {fileURLToPath} from "url";
+import { fileURLToPath } from "url";
 import mediaModule from "./src/modules/media/media.js";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
@@ -20,6 +20,27 @@ import templatingService from "./src/modules/templating/templating.service.js";
 // ESM equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Extend Express Request to include cookies
+declare global {
+  namespace Express {
+    interface Request {
+      cookies: Record<string, string>;
+    }
+    interface Response {
+      cookie(
+        name: string,
+        value: string,
+        options?: {
+          maxAge?: number;
+          path?: string;
+          httpOnly?: boolean;
+          secure?: boolean;
+        }
+      ): this;
+    }
+  }
+}
 
 const multerStorage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -45,7 +66,7 @@ const upload = multer({
 });
 
 if (fs.existsSync(".env.development")) {
-  dotenv.config({path: ".env.development"});
+  dotenv.config({ path: ".env.development" });
 } else {
   dotenv.config();
 }
@@ -69,27 +90,40 @@ app.use(
   express.static(path.join(__dirname, "node_modules/jquery-ui-dist"))
 );
 
-app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 // Public API routes (no auth required)
 app.use("/api/collections", collectionsApi);
 app.use("/api/collections", itemsApi);
 
-app.use((req, res, next) => {
-  const cookies = {};
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const cookies: Record<string, string> = {};
   const cookieHeader = req.headers.cookie;
 
   if (cookieHeader) {
     cookieHeader.split(";").forEach((cookie) => {
       const parts = cookie.split("=");
-      cookies[parts[0].trim()] = (parts[1] || "").trim();
+      const key = parts[0]?.trim();
+      const value = parts[1]?.trim() || "";
+      if (key) {
+        cookies[key] = value;
+      }
     });
   }
 
   req.cookies = cookies;
 
-  res.cookie = function (name, value, options = {}) {
+  res.cookie = function (
+    name: string,
+    value: string,
+    options: {
+      maxAge?: number;
+      path?: string;
+      httpOnly?: boolean;
+      secure?: boolean;
+    } = {}
+  ) {
     let cookieStr = `${name}=${value}`;
 
     if (options.maxAge) cookieStr += `; Max-Age=${options.maxAge}`;
@@ -104,15 +138,16 @@ app.use((req, res, next) => {
   next();
 });
 
-const requireAuth = (req, res, next) => {
-  if (!req.cookies.auth) {
-    return res.redirect("/login");
+const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
+  if (!req.cookies["auth"]) {
+    res.redirect("/login");
+    return;
   }
   next();
 };
 
 // Webhook routes
-const renderWebhooksPage = async (req, res) => {
+const renderWebhooksPage = async (req: Request, res: Response): Promise<void> => {
   try {
     let webhooksListHtml = "";
     const collections = await storageModule.getCollections();
@@ -172,7 +207,8 @@ const renderWebhooksPage = async (req, res) => {
     });
 
     if (!content) {
-      return res.status(500).send("Error loading template");
+      res.status(500).send("Error loading template");
+      return;
     }
 
     res.send(content);
@@ -184,41 +220,49 @@ const renderWebhooksPage = async (req, res) => {
 
 app.get("/webhooks", requireAuth, renderWebhooksPage);
 
-app.post("/api/webhooks", requireAuth, async (req, res) => {
+app.post("/api/webhooks", requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const {collection: collectionId, url, events = []} = req.body;
+    const { collection: collectionId, url, events = [] } = req.body;
 
     if (!collectionId || !url || events.length === 0) {
-      return res.status(400).json({error: "Missing required fields"});
+      res.status(400).json({ error: "Missing required fields" });
+      return;
     }
 
     // Validate that events only contain allowed values
     const allowedEvents = ["create", "update", "delete"];
-    const validEvents = events.every((event) => allowedEvents.includes(event));
+    const validEvents = events.every((event: string) => allowedEvents.includes(event));
 
     if (!validEvents) {
-      return res.status(400).json({error: "Invalid event types provided"});
+      res.status(400).json({ error: "Invalid event types provided" });
+      return;
     }
 
     const webhook = await storageModule.addWebhook(collectionId, url, events);
     res.json(webhook);
   } catch (error) {
     console.error("Error creating webhook:", error);
-    res.status(500).json({error: "Error creating webhook"});
+    res.status(500).json({ error: "Error creating webhook" });
   }
 });
 
-app.delete("/api/webhooks/:id", requireAuth, async (req, res) => {
+app.delete("/api/webhooks/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const success = await storageModule.deleteWebhook(req.params.id);
+    const id = req.params.id;
+    if (!id) {
+      res.status(400).json({ error: "Webhook ID is required" });
+      return;
+    }
+
+    const success = await storageModule.deleteWebhook(id);
     if (success) {
-      res.json({success: true});
+      res.json({ success: true });
     } else {
-      res.status(404).json({error: "Webhook not found"});
+      res.status(404).json({ error: "Webhook not found" });
     }
   } catch (error) {
     console.error("Error deleting webhook:", error);
-    res.status(500).json({error: "Error deleting webhook"});
+    res.status(500).json({ error: "Error deleting webhook" });
   }
 });
 
@@ -231,27 +275,28 @@ app.use("/api/collections", requireAuth, collectionsRoutes);
 app.use("/api/collections", requireAuth, itemsRoutes);
 
 // Simple page rendering helper
-const renderSimplePage = (req, res) => {
+const renderSimplePage = (req: Request, res: Response): void => {
   const pageName = req.path === "/" ? "home" : req.path.substring(1);
   const content = templatingService.renderPage(pageName, req);
 
   if (!content) {
-    return res.status(500).send("Error loading template");
+    res.status(500).send("Error loading template");
+    return;
   }
 
   res.send(content);
 };
 
 // Login routes
-app.get("/login", (req, res) => {
-  if (req.cookies.auth) {
+app.get("/login", (req: Request, res: Response) => {
+  if (req.cookies["auth"]) {
     return res.redirect("/home");
   }
   renderSimplePage(req, res);
 });
 
-app.post("/login", (req, res) => {
-  const {username, password} = req.body;
+app.post("/login", (req: Request, res: Response) => {
+  const { username, password } = req.body;
 
   if (
     username === process.env.ADMIN_USERNAME &&
@@ -263,13 +308,13 @@ app.post("/login", (req, res) => {
       httpOnly: true,
     });
 
-    return res.status(200).json({success: true});
+    return res.status(200).json({ success: true });
   }
 
-  return res.status(401).json({error: "Invalid credentials"});
+  return res.status(401).json({ error: "Invalid credentials" });
 });
 
-app.get("/logout", (_req, res) => {
+app.get("/logout", (_req: Request, res: Response) => {
   res.cookie("auth", "", {
     maxAge: -1,
     path: "/",
@@ -283,7 +328,7 @@ app.get("/", requireAuth, renderSimplePage);
 app.get("/home", requireAuth, renderSimplePage);
 
 // Media Library routes
-const renderMediaPage = (req, res) => {
+const renderMediaPage = (req: Request, res: Response): void => {
   const mediaItems = mediaModule.getAllMedia();
   let mediaHtml = "";
 
@@ -327,7 +372,8 @@ const renderMediaPage = (req, res) => {
   const content = templatingService.renderPage("media", req, variables);
 
   if (!content) {
-    return res.status(500).send("Error loading template");
+    res.status(500).send("Error loading template");
+    return;
   }
 
   res.send(content);
@@ -336,45 +382,47 @@ const renderMediaPage = (req, res) => {
 app.get("/media", requireAuth, renderMediaPage);
 
 // API routes for media
-app.post("/api/media", requireAuth, upload.single("image"), (req, res) => {
+app.post("/api/media", requireAuth, upload.single("image"), (req: Request, res: Response): void => {
   try {
     if (!req.file) {
-      return res.status(400).json({error: "No image file uploaded"});
+      res.status(400).json({ error: "No image file uploaded" });
+      return;
     }
 
     const description = req.body.description || "";
     const mediaItem = mediaModule.addMedia(req.file, description);
 
-    res.json({success: true, media: mediaItem});
+    res.json({ success: true, media: mediaItem });
   } catch (err) {
     console.error("Error uploading image:", err);
-    res.status(500).json({error: `Error uploading image: ${err.message}`});
+    res.status(500).json({ error: `Error uploading image: ${err instanceof Error ? err.message : 'Unknown error'}` });
   }
 });
 
-app.get("/api/media", requireAuth, (_req, res) => {
+app.get("/api/media", requireAuth, (_req: Request, res: Response) => {
   try {
     const mediaItems = mediaModule.getAllMedia();
-    res.json({success: true, media: mediaItems});
+    res.json({ success: true, media: mediaItems });
   } catch (err) {
     console.error("Error retrieving media:", err);
-    res.status(500).json({error: `Error retrieving media: ${err.message}`});
+    res.status(500).json({ error: `Error retrieving media: ${err instanceof Error ? err.message : 'Unknown error'}` });
   }
 });
 
-app.delete("/api/media/:id", requireAuth, (req, res) => {
-  const {id: mediaId} = req.params;
+app.delete("/api/media/:id", requireAuth, (req: Request, res: Response): void => {
+  const { id: mediaId } = req.params;
 
   if (!mediaId) {
-    return res.status(400).json({error: "Media ID is required"});
+    res.status(400).json({ error: "Media ID is required" });
+    return;
   }
 
   const success = mediaModule.deleteMedia(mediaId);
 
   if (success) {
-    res.json({success: true, message: "Media deleted successfully"});
+    res.json({ success: true, message: "Media deleted successfully" });
   } else {
-    res.status(404).json({error: "Media not found or could not be deleted"});
+    res.status(404).json({ error: "Media not found or could not be deleted" });
   }
 });
 

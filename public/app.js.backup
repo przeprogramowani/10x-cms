@@ -637,28 +637,49 @@ function initCollectionDetailPage() {
           var $row = $('tr[data-id="' + itemId + '"]');
           var item = response.item;
 
-          // Parse the JSON data string
-          var itemData = JSON.parse(item.data);
+          // Parse the JSON data string if needed (backend returns it as object)
+          var itemData;
+          if (typeof item.data === "string") {
+            try {
+              itemData = JSON.parse(item.data);
+            } catch (e) {
+              console.error("Error parsing item data:", e);
+              itemData = {};
+            }
+          } else {
+            itemData = item.data || {};
+          }
 
           // Clear the row
           $row.empty();
 
-          // Add cells for each field in itemData
-          for (var field in itemData) {
+          // Get the table headers to maintain the correct order
+          var headers = [];
+          $("table thead th").each(function (index, th) {
+            if (index < $("table thead th").length - 1) {
+              headers.push($(th).text());
+            }
+          });
+
+          // Add cells for each field in the correct order
+          for (var i = 0; i < headers.length; i++) {
+            var field = headers[i];
             var value = itemData[field] || "";
+            var valueStr = String(value);
 
             // Check if this is a media field (assuming paths start with /uploads/ or /public/uploads/)
             if (
-              value.startsWith("/uploads/") ||
-              value.startsWith("/public/uploads/")
+              valueStr &&
+              (valueStr.indexOf("/uploads/") === 0 ||
+                valueStr.indexOf("/public/uploads/") === 0)
             ) {
               $row.append(
                 '<td><img src="' +
-                  value +
+                  valueStr +
                   '" alt="Media" class="img-thumbnail" style="max-width: 50px; max-height: 50px;"></td>'
               );
             } else {
-              $row.append("<td>" + value + "</td>");
+              $row.append("<td>" + valueStr + "</td>");
             }
           }
 

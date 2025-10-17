@@ -1,12 +1,16 @@
 import fs from "fs";
 import path from "path";
-import {fileURLToPath} from "url";
+import type { Request } from "express";
 
-// ESM equivalent of __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+interface MetaTags {
+  [key: string]: string;
+}
 
-const readFileSync = (filepath) => {
+interface TemplateVariables {
+  [key: string]: string | number | boolean;
+}
+
+const readFileSync = (filepath: string): string | null => {
   try {
     return fs.readFileSync(filepath, "utf8");
   } catch (err) {
@@ -15,8 +19,8 @@ const readFileSync = (filepath) => {
   }
 };
 
-const parseMetaTags = (content) => {
-  const meta = {};
+const parseMetaTags = (content: string): MetaTags => {
+  const meta: MetaTags = {};
   const lines = content.split("\n");
 
   lines.forEach((line) => {
@@ -25,7 +29,7 @@ const parseMetaTags = (content) => {
       const tag = trimmedLine.replace("<!-- @", "").replace(" -->", "");
       const parts = tag.split(":");
       if (parts.length === 2) {
-        meta[parts[0]] = parts[1];
+        meta[parts[0] as string] = parts[1] as string;
       }
     }
   });
@@ -33,7 +37,11 @@ const parseMetaTags = (content) => {
   return meta;
 };
 
-const injectComponent = (content, componentName, variables) => {
+const injectComponent = (
+  content: string,
+  componentName: string,
+  variables: TemplateVariables
+): string => {
   const componentPath = path.join(
     process.cwd(),
     "src/components",
@@ -53,7 +61,11 @@ const injectComponent = (content, componentName, variables) => {
   );
 };
 
-const renderWithLayout = (content, layoutName, variables) => {
+const renderWithLayout = (
+  content: string,
+  layoutName: string,
+  variables: TemplateVariables
+): string => {
   const layoutPath = path.join(process.cwd(), "src/layout", `${layoutName}.html`);
   let layoutContent = readFileSync(layoutPath);
   if (!layoutContent) {
@@ -69,7 +81,10 @@ const renderWithLayout = (content, layoutName, variables) => {
   return renderTemplate(layoutContent, variables);
 };
 
-const processConditionals = (content, variables) => {
+const processConditionals = (
+  content: string,
+  variables: TemplateVariables
+): string => {
   // Process if conditions
   const ifRegex = /<!-- @if:(\w+) -->([\s\S]*?)<!-- @endif -->/g;
   let match;
@@ -79,9 +94,9 @@ const processConditionals = (content, variables) => {
     const conditionalContent = match[2];
 
     // Check if the condition variable exists and is truthy
-    if (variables[condition]) {
+    if (condition && variables[condition]) {
       // Replace the entire conditional block with just the content
-      content = content.replace(match[0], conditionalContent);
+      content = content.replace(match[0], conditionalContent ?? "");
     } else {
       // Remove the entire conditional block
       content = content.replace(match[0], "");
@@ -91,7 +106,10 @@ const processConditionals = (content, variables) => {
   return content;
 };
 
-const renderTemplate = (template, variables) => {
+const renderTemplate = (
+  template: string,
+  variables: TemplateVariables
+): string => {
   let content = template;
 
   // First process conditionals
@@ -105,7 +123,7 @@ const renderTemplate = (template, variables) => {
     ) {
       content = content.replace(
         new RegExp(`{{${key}}}`, "g"),
-        variables[key]
+        String(variables[key])
       );
     }
   });
@@ -113,7 +131,11 @@ const renderTemplate = (template, variables) => {
   return content;
 };
 
-const renderPage = (pageName, req, customVariables) => {
+const renderPage = (
+  pageName: string,
+  req: Request,
+  customVariables?: TemplateVariables
+): string | null => {
   const pagePath = path.join(process.cwd(), "src/pages", `${pageName}.html`);
   let content = readFileSync(pagePath);
 
@@ -122,11 +144,11 @@ const renderPage = (pageName, req, customVariables) => {
   }
 
   const meta = parseMetaTags(content);
-  const variables = {
-    title: meta.title || "10xCMS",
+  const variables: TemplateVariables = {
+    title: meta["title"] || "10xCMS",
     currentYear: new Date().getFullYear(),
     // Add authentication status if request object is provided
-    isAuthenticated: req && req.cookies && req.cookies.auth ? true : false,
+    isAuthenticated: req && req.cookies && req.cookies["auth"] ? true : false,
     // Merge custom variables if provided
     ...customVariables,
   };
@@ -136,8 +158,8 @@ const renderPage = (pageName, req, customVariables) => {
     .filter((line) => !line.trim().startsWith("<!-- @"))
     .join("\n");
 
-  if (meta.layout) {
-    content = renderWithLayout(content, meta.layout, variables);
+  if (meta["layout"]) {
+    content = renderWithLayout(content, meta["layout"], variables);
   }
 
   return content;

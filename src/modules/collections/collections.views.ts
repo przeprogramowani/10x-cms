@@ -1,10 +1,14 @@
+import { type Request, type Response } from "express";
 import collectionsService from "./collections.service.js";
 import templatingService from "../templating/templating.service.js";
 
 /**
  * Renders the collections list page with all collections and their item counts
  */
-const renderCollectionsPage = async (req, res) => {
+const renderCollectionsPage = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const collections = await collectionsService.getCollections();
     let collectionsHtml = "";
@@ -18,7 +22,7 @@ const renderCollectionsPage = async (req, res) => {
         const collectionWithItems = await collectionsService.getCollectionById(
           collection.id
         );
-        const itemsCount = collectionWithItems.items
+        const itemsCount = collectionWithItems?.items
           ? collectionWithItems.items.length
           : 0;
 
@@ -44,7 +48,8 @@ const renderCollectionsPage = async (req, res) => {
     });
 
     if (!content) {
-      return res.status(500).send("Error loading template");
+      res.status(500).send("Error loading template");
+      return;
     }
 
     res.send(content);

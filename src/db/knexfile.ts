@@ -1,11 +1,18 @@
 import path from "path";
-import {fileURLToPath} from "url";
+import { fileURLToPath } from "url";
+import type { Knex } from "knex";
 
 // ESM equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export default {
+interface KnexConfig {
+  development: Knex.Config;
+  test: Knex.Config;
+  production: Knex.Config;
+}
+
+const config: KnexConfig = {
   development: {
     client: "sqlite3",
     connection: {
@@ -19,7 +26,7 @@ export default {
     },
     useNullAsDefault: true,
     pool: {
-      afterCreate: (conn, cb) => {
+      afterCreate: (conn: any, cb: any) => {
         conn.run("PRAGMA foreign_keys = ON", cb);
       },
     },
@@ -52,9 +59,11 @@ export default {
     },
     useNullAsDefault: true,
     pool: {
-      afterCreate: (conn, cb) => {
+      afterCreate: (conn: any, cb: any) => {
         conn.run("PRAGMA foreign_keys = ON", cb);
       },
     },
   },
 };
+
+export default config;

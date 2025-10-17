@@ -1,33 +1,39 @@
 import fs from "fs";
 import path from "path";
-import {fileURLToPath} from "url";
-
-// ESM equivalent of __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import type { MediaItem } from "../types.js";
 
 // Base directory for media storage
 const MEDIA_DIR = path.join(process.cwd(), "src/modules/media/data");
 const MEDIA_FILE = "media.json";
 const UPLOADS_DIR = path.join(process.cwd(), "public/uploads");
 
+/**
+ * Multer file type (from uploaded request)
+ */
+interface MulterFile {
+  filename: string;
+  originalname: string;
+  mimetype: string;
+  size: number;
+}
+
 // Ensure directories exist
-const ensureDirectoriesExist = () => {
+const ensureDirectoriesExist = (): void => {
   if (!fs.existsSync(MEDIA_DIR)) {
-    fs.mkdirSync(MEDIA_DIR, {recursive: true});
+    fs.mkdirSync(MEDIA_DIR, { recursive: true });
   }
   if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, {recursive: true});
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
   }
 };
 
 // Get full path for media data file
-const getMediaFilePath = () => {
+const getMediaFilePath = (): string => {
   return path.join(MEDIA_DIR, MEDIA_FILE);
 };
 
 // Get all media items
-const getAllMedia = () => {
+const getAllMedia = (): MediaItem[] => {
   ensureDirectoriesExist();
 
   const mediaPath = getMediaFilePath();
@@ -39,7 +45,7 @@ const getAllMedia = () => {
   }
 
   try {
-    return JSON.parse(fs.readFileSync(mediaPath, "utf8"));
+    return JSON.parse(fs.readFileSync(mediaPath, "utf8")) as MediaItem[];
   } catch (err) {
     console.error("Error reading media data:", err);
     return [];
@@ -47,13 +53,13 @@ const getAllMedia = () => {
 };
 
 // Add a new media item
-const addMedia = (file, description) => {
+const addMedia = (file: MulterFile, description?: string): MediaItem => {
   ensureDirectoriesExist();
 
   const media = getAllMedia();
 
   // Create new media item
-  const newMedia = {
+  const newMedia: MediaItem = {
     id: Date.now().toString(),
     filename: file.filename,
     originalname: file.originalname,
@@ -74,7 +80,7 @@ const addMedia = (file, description) => {
 };
 
 // Delete a media item
-const deleteMedia = (id) => {
+const deleteMedia = (id: string): boolean => {
   const media = getAllMedia();
   const mediaIndex = media.findIndex((item) => item.id === id);
 
@@ -83,6 +89,10 @@ const deleteMedia = (id) => {
   }
 
   const mediaToDelete = media[mediaIndex];
+  if (!mediaToDelete) {
+    return false;
+  }
+
   media.splice(mediaIndex, 1);
 
   // Delete the file
@@ -103,13 +113,13 @@ const deleteMedia = (id) => {
 };
 
 // Get a specific media item by ID
-const getMediaById = (id) => {
+const getMediaById = (id: string): MediaItem | null => {
   const media = getAllMedia();
   return media.find((item) => item.id === id) || null;
 };
 
 // Initialize media storage
-const initializeMediaStorage = () => {
+const initializeMediaStorage = (): void => {
   ensureDirectoriesExist();
 
   // Initialize with empty array if file doesn't exist

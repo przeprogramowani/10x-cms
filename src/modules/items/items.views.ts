@@ -1,23 +1,34 @@
+import { type Request, type Response } from "express";
 import collectionsService from "../collections/collections.service.js";
 import templatingService from "../templating/templating.service.js";
+import type { CollectionSchema, FieldType } from "../types.js";
 
 /**
  * Renders a single collection page with its items and form fields
  */
-const renderCollectionPage = async (req, res) => {
+const renderCollectionPage = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const collectionId = req.params.id;
+    if (!collectionId) {
+      res.status(400).send("Collection ID is required");
+      return;
+    }
+
     const collection = await collectionsService.getCollectionById(collectionId);
 
     if (!collection) {
-      return res.status(404).send("Collection not found");
+      res.status(404).send("Collection not found");
+      return;
     }
 
     let itemsHtml = "";
     let formFieldsHtml = "";
 
     // Only iterate over actual schema fields, not system fields
-    let schema = collection.schema;
+    let schema: CollectionSchema = collection.schema;
     if (typeof schema === "string") {
       try {
         schema = JSON.parse(schema);
@@ -28,7 +39,7 @@ const renderCollectionPage = async (req, res) => {
     }
 
     for (const field in schema) {
-      const fieldType = schema[field];
+      const fieldType = schema[field] as FieldType;
       let inputType = "text";
 
       if (fieldType === "number") {
@@ -77,7 +88,7 @@ const renderCollectionPage = async (req, res) => {
 
         // Only show schema fields in table cells
         for (const field in schema) {
-          const fieldType = schema[field];
+          const fieldType = schema[field] as FieldType;
           let fieldValue = "";
 
           // Handle item.data which is stored as JSON in the database
@@ -92,7 +103,7 @@ const renderCollectionPage = async (req, res) => {
               }
             } else {
               // If item.data is already an object
-              fieldValue = item.data[field] || "";
+              fieldValue = item.data[field]?.toString() || "";
             }
           }
 
@@ -127,7 +138,8 @@ const renderCollectionPage = async (req, res) => {
     const content = templatingService.renderPage("collection", req, variables);
 
     if (!content) {
-      return res.status(500).send("Error loading template");
+      res.status(500).send("Error loading template");
+      return;
     }
 
     res.send(content);
