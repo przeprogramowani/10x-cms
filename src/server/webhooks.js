@@ -1,66 +1,56 @@
-var storage = require("./storage");
-var httpClient = require("@10xdevspl/http-client");
+import storage from "./storage.js";
+import httpClient from "@10xdevspl/http-client";
 
-async function getWebhooksForEvent(collectionId, eventType) {
-  var webhooks = await storage.getWebhooks(collectionId);
+const getWebhooksForEvent = async (collectionId, eventType) => {
+  const webhooks = await storage.getWebhooks(collectionId);
+  return webhooks.filter((webhook) => webhook.events.includes(eventType));
+};
 
-  return webhooks.filter(function (webhook) {
-    return webhook.events.indexOf(eventType) !== -1;
-  });
-}
-
-async function callWebhook(webhook, data) {
+const callWebhook = async (webhook, data) => {
   return await httpClient.post(webhook.url, data, {
     "Content-Type": "application/json",
     "User-Agent": "10xCMS-Webhook-Service/1.0",
     "X-Webhook-Event": data.event,
   });
-}
+};
 
-async function notifyWebhooks(collectionId, eventType, data) {
-  var webhooks = await getWebhooksForEvent(collectionId, eventType);
+const notifyWebhooks = async (collectionId, eventType, data) => {
+  const webhooks = await getWebhooksForEvent(collectionId, eventType);
 
   if (!webhooks || webhooks.length === 0) {
     return;
   }
 
-  var collection = await storage.getCollectionById(collectionId);
+  const collection = await storage.getCollectionById(collectionId);
   if (!collection) {
     console.error(
-      "Collection not found for webhook notification: " + collectionId
+      `Collection not found for webhook notification: ${collectionId}`
     );
     return;
   }
 
-  var payload = {
+  const payload = {
     event: eventType,
     collection: {
       id: collection.id,
       name: collection.name,
     },
-    data: data,
+    data,
     timestamp: new Date().toISOString(),
   };
 
   console.log(
-    "Notifying " +
-      webhooks.length +
-      " webhooks for " +
-      collection.name +
-      " - " +
-      eventType
+    `Notifying ${webhooks.length} webhooks for ${collection.name} - ${eventType}`
   );
 
-  const promises = webhooks.map(function (webhook) {
-    return callWebhook(webhook, payload);
-  });
+  const promises = webhooks.map((webhook) => callWebhook(webhook, payload));
 
   const results = await Promise.allSettled(promises);
 
   results.forEach((result, index) => {
     if (result.status === "rejected") {
       console.error(
-        "Error calling webhook: " + webhooks[index].url,
+        `Error calling webhook: ${webhooks[index].url}`,
         result.reason
       );
     }
@@ -70,22 +60,22 @@ async function notifyWebhooks(collectionId, eventType, data) {
     "Webhook notification complete with results:",
     results.map((r) => r.status).join(", ")
   );
-}
+};
 
-async function onItemCreated(collectionId, item) {
+const onItemCreated = async (collectionId, item) => {
   await notifyWebhooks(collectionId, "create", item);
-}
+};
 
-async function onItemUpdated(collectionId, item) {
+const onItemUpdated = async (collectionId, item) => {
   await notifyWebhooks(collectionId, "update", item);
-}
+};
 
-async function onItemDeleted(collectionId, itemId) {
+const onItemDeleted = async (collectionId, itemId) => {
   await notifyWebhooks(collectionId, "delete", {id: itemId});
-}
+};
 
-module.exports = {
-  onItemCreated: onItemCreated,
-  onItemUpdated: onItemUpdated,
-  onItemDeleted: onItemDeleted,
+export default {
+  onItemCreated,
+  onItemUpdated,
+  onItemDeleted,
 };

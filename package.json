@@ -1,6 +1,7 @@
 {
   "name": "10x-cms",
   "version": "1.0.0",
+  "type": "module",
   "description": "A modern Content Management System built with performance and scalability in mind",
   "main": "index.js",
   "scripts": {
@@ -15,9 +16,12 @@
   "dependencies": {
     "@10xdevspl/http-client": "0.0.1",
     "body-parser": "^1.20.2",
+    "bootstrap": "5.3.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "4.21.2",
+    "jquery": "3.7.1",
+    "jquery-ui-dist": "1.13.2",
     "knex": "3.1.0",
     "multer": "1.4.5-lts.1",
     "sqlite3": "5.1.7",
@@ -25,7 +29,6 @@
   },
   "devDependencies": {
     "@types/node": "22.14.1",
-    "bower": "1.8.14",
     "chai": "4.3.4",
     "mocha": "8.4.0",
     "nodemon": "^3.0.2"

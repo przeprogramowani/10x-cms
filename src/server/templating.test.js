@@ -1,44 +1,44 @@
-var expect = require("chai").expect;
-var path = require("path");
-var templating = require("./templating");
+import {expect} from "chai";
+import path from "path";
+import templating from "./templating.js";
 
-describe("Templating Engine", function () {
-  describe("parseMetaTags", function () {
-    it("should parse meta tags from content", function () {
-      var content = [
+describe("Templating Engine", () => {
+  describe("parseMetaTags", () => {
+    it("should parse meta tags from content", () => {
+      const content = [
         "<!-- @title:Home Page -->",
         "<!-- @layout:main -->",
         "Some content",
       ].join("\n");
 
-      var meta = templating.parseMetaTags(content);
+      const meta = templating.parseMetaTags(content);
       expect(meta).to.be.an("object");
       expect(meta.title).to.equal("Home Page");
       expect(meta.layout).to.equal("main");
     });
 
-    it("should return empty object when no meta tags", function () {
-      var content = "Just some content\nwithout meta tags";
-      var meta = templating.parseMetaTags(content);
+    it("should return empty object when no meta tags", () => {
+      const content = "Just some content\nwithout meta tags";
+      const meta = templating.parseMetaTags(content);
       expect(meta).to.be.an("object");
       expect(Object.keys(meta)).to.have.length(0);
     });
   });
 
-  describe("renderTemplate", function () {
-    it("should replace variables in template", function () {
-      var template = "Hello {{name}}! The year is {{year}}.";
-      var variables = {
+  describe("renderTemplate", () => {
+    it("should replace variables in template", () => {
+      const template = "Hello {{name}}! The year is {{year}}.";
+      const variables = {
         name: "John",
         year: 2014,
       };
 
-      var result = templating.renderTemplate(template, variables);
+      const result = templating.renderTemplate(template, variables);
       expect(result).to.equal("Hello John! The year is 2014.");
     });
 
-    it("should process conditional blocks correctly", function () {
-      var template = [
+    it("should process conditional blocks correctly", () => {
+      const template = [
         "Start",
         "<!-- @if:showGreeting -->",
         "Hello!",
@@ -46,10 +46,10 @@ describe("Templating Engine", function () {
         "End",
       ].join("\n");
 
-      var resultTrue = templating.renderTemplate(template, {
+      const resultTrue = templating.renderTemplate(template, {
         showGreeting: true,
       });
-      var resultFalse = templating.renderTemplate(template, {
+      const resultFalse = templating.renderTemplate(template, {
         showGreeting: false,
       });
 

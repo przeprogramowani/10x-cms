@@ -1,13 +1,13 @@
-exports.up = function (knex) {
+exports.up = (knex) => {
   return knex.schema
-    .createTable("collections", function (table) {
+    .createTable("collections", (table) => {
       table.string("id").primary();
       table.string("name").notNullable();
       table.json("schema").notNullable();
       table.timestamp("created_at").defaultTo(knex.fn.now());
       table.timestamp("updated_at").defaultTo(knex.fn.now());
     })
-    .createTable("items", function (table) {
+    .createTable("items", (table) => {
       table.string("id").primary();
       table.string("collection_id").notNullable();
       table.json("data").notNullable();
@@ -18,7 +18,7 @@ exports.up = function (knex) {
         .references("collections.id")
         .onDelete("CASCADE");
     })
-    .createTable("webhooks", function (table) {
+    .createTable("webhooks", (table) => {
       table.string("id").primary();
       table.string("collection_id").notNullable();
       table.string("url").notNullable();
@@ -32,7 +32,7 @@ exports.up = function (knex) {
     });
 };
 
-exports.down = function (knex) {
+exports.down = (knex) => {
   return knex.schema
     .dropTable("webhooks")
     .dropTable("items")

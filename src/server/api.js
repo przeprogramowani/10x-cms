@@ -1,11 +1,12 @@
-var express = require("express");
-var router = express.Router();
-var storageModule = require("./storage");
+import express from "express";
+import storageModule from "./storage.js";
+
+const router = express.Router();
 
 // Get all collections
-router.get("/collections", async function (req, res) {
+router.get("/collections", async (req, res) => {
   try {
-    var collections = await storageModule.getCollections();
+    const collections = await storageModule.getCollections();
     res.json(collections);
   } catch (error) {
     res.status(500).json({error: "Internal server error"});
@@ -13,9 +14,9 @@ router.get("/collections", async function (req, res) {
 });
 
 // Get single collection
-router.get("/collections/:id", async function (req, res) {
+router.get("/collections/:id", async (req, res) => {
   try {
-    var collection = await storageModule.getCollectionById(req.params.id);
+    const collection = await storageModule.getCollectionById(req.params.id);
     if (!collection) {
       return res.status(404).json({error: "Collection not found"});
     }
@@ -26,9 +27,9 @@ router.get("/collections/:id", async function (req, res) {
 });
 
 // Get collection items
-router.get("/collections/:id/items", async function (req, res) {
+router.get("/collections/:id/items", async (req, res) => {
   try {
-    var collection = await storageModule.getCollectionById(req.params.id);
+    const collection = await storageModule.getCollectionById(req.params.id);
     if (!collection) {
       return res.status(404).json({error: "Collection not found"});
     }
@@ -39,30 +40,25 @@ router.get("/collections/:id/items", async function (req, res) {
 });
 
 // Get single item
-router.get(
-  "/collections/:collectionId/items/:itemId",
-  async function (req, res) {
-    try {
-      var collection = await storageModule.getCollectionById(
-        req.params.collectionId
-      );
-      if (!collection) {
-        return res.status(404).json({error: "Collection not found"});
-      }
+router.get("/collections/:collectionId/items/:itemId", async (req, res) => {
+  try {
+    const {collectionId, itemId} = req.params;
+    const collection = await storageModule.getCollectionById(collectionId);
 
-      var item = collection.items.find(function (item) {
-        return item.id === req.params.itemId;
-      });
-
-      if (!item) {
-        return res.status(404).json({error: "Item not found"});
-      }
-
-      res.json(item);
-    } catch (error) {
-      res.status(500).json({error: "Internal server error"});
+    if (!collection) {
+      return res.status(404).json({error: "Collection not found"});
     }
-  }
-);
 
-module.exports = router;
+    const item = collection.items.find((item) => item.id === itemId);
+
+    if (!item) {
+      return res.status(404).json({error: "Item not found"});
+    }
+
+    res.json(item);
+  } catch (error) {
+    res.status(500).json({error: "Internal server error"});
+  }
+});
+
+export default router;

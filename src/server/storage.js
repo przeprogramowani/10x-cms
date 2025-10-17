@@ -1,9 +1,9 @@
-const db = require("./db/connection");
+import db from "./db/connection.js";
 
-async function createCollection(name, schema) {
+const createCollection = async (name, schema) => {
   const collection = {
     id: Date.now().toString(),
-    name: name,
+    name,
     schema: schema || {},
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -11,21 +11,21 @@ async function createCollection(name, schema) {
 
   await db("collections").insert(collection);
   return collection;
-}
+};
 
-async function getCollections() {
+const getCollections = async () => {
   return await db("collections").select("*");
-}
+};
 
-async function getCollectionById(id) {
+const getCollectionById = async (id) => {
   const collection = await db("collections").where({id}).first();
   if (collection) {
     collection.items = await db("items").where({collection_id: id});
   }
   return collection;
-}
+};
 
-async function updateCollection(id, updates) {
+const updateCollection = async (id, updates) => {
   const updateData = {
     ...updates,
     updated_at: new Date().toISOString(),
@@ -34,15 +34,15 @@ async function updateCollection(id, updates) {
   await db("collections").where({id}).update(updateData);
 
   return await getCollectionById(id);
-}
+};
 
-async function deleteCollection(id) {
+const deleteCollection = async (id) => {
   const deleted = await db("collections").where({id}).delete();
 
   return deleted > 0;
-}
+};
 
-async function addItemToCollection(collectionId, item) {
+const addItemToCollection = async (collectionId, item) => {
   const newItem = {
     id: Date.now().toString(),
     collection_id: collectionId,
@@ -53,9 +53,9 @@ async function addItemToCollection(collectionId, item) {
 
   await db("items").insert(newItem);
   return newItem;
-}
+};
 
-async function updateItemInCollection(collectionId, itemId, updates) {
+const updateItemInCollection = async (collectionId, itemId, updates) => {
   const updateData = {
     data: JSON.stringify(updates),
     updated_at: new Date().toISOString(),
@@ -69,9 +69,9 @@ async function updateItemInCollection(collectionId, itemId, updates) {
     .update(updateData);
 
   return await db("items").where({id: itemId}).first();
-}
+};
 
-async function deleteItemFromCollection(collectionId, itemId) {
+const deleteItemFromCollection = async (collectionId, itemId) => {
   const deleted = await db("items")
     .where({
       id: itemId,
@@ -80,13 +80,13 @@ async function deleteItemFromCollection(collectionId, itemId) {
     .delete();
 
   return deleted > 0;
-}
+};
 
-async function getWebhooks(collectionId) {
+const getWebhooks = async (collectionId) => {
   const webhooks = await db("webhooks")
     .where({collection_id: collectionId})
     .select("*");
-  return webhooks.map(function (webhook) {
+  return webhooks.map((webhook) => {
     if (typeof webhook.events === "string") {
       try {
         webhook.events = JSON.parse(webhook.events);
@@ -96,13 +96,13 @@ async function getWebhooks(collectionId) {
     }
     return webhook;
   });
-}
+};
 
-async function addWebhook(collectionId, url, events) {
+const addWebhook = async (collectionId, url, events) => {
   const webhook = {
     id: Date.now().toString(),
     collection_id: collectionId,
-    url: url,
+    url,
     events: JSON.stringify(events),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -111,21 +111,21 @@ async function addWebhook(collectionId, url, events) {
   await db("webhooks").insert(webhook);
   return {
     ...webhook,
-    events: events, // Return the original array for the response
+    events, // Return the original array for the response
   };
-}
+};
 
-async function deleteWebhook(webhookId) {
+const deleteWebhook = async (webhookId) => {
   const deleted = await db("webhooks").where({id: webhookId}).delete();
 
   return deleted > 0;
-}
+};
 
-async function initializeStorage() {
+const initializeStorage = async () => {
   await db.migrate.latest();
-}
+};
 
-module.exports = {
+export default {
   createCollection,
   getCollections,
   getCollectionById,

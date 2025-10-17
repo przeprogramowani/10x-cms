@@ -76,35 +76,29 @@ Struktura danych wysyłanych przez webhook:
 
 ## Wymagania wstępne
 
-- Node.js i npm
-- Bower (dla zależności frontendowych)
+- Node.js (v16 lub nowszy)
+- npm
 
 ## Rozpoczęcie pracy
 
-1. Zainstaluj globalne zależności:
-
-```bash
-npm install -g bower
-```
-
-2. Zainstaluj zależności projektu:
+Zainstaluj zależności projektu:
 
 ```bash
 npm install
-bower install
 ```
 
-Zależności frontendowe zostaną zainstalowane w katalogu `public/vendor`.
+Wszystkie zależności (backendowe i frontendowe) są zarządzane przez npm.
 
 ## Stack techniczny
 
-- Node.js - środowisko wykonawcze
-- Bower - zarządzanie zależnościami frontendowymi
-- jQuery & jQuery UI - obsługa interakcji po stronie klienta
-- Bootstrap - style komponentów
+- Node.js (ESM) - środowisko wykonawcze z nowoczesnymi modułami ES6
 - Express - framework backendowy
+- SQLite + Knex.js - baza danych i migracje
+- jQuery & jQuery UI - obsługa interakcji po stronie klienta
+- Bootstrap 5 - style komponentów
 - Multer - obsługa przesyłanych plików
-- Mocha & Chai - narzędzia do testowania
+- Mocha & Chai - narzędzia do testowania jednostkowego
+- Playwright - testy E2E
 
 ## Uruchamianie aplikacji
 
