@@ -1,8 +1,9 @@
-import storage from "./storage.js";
+import storageModule from "../storage/storage.js";
+import collectionsService from "../collections/collections.service.js";
 import httpClient from "@10xdevspl/http-client";
 
 const getWebhooksForEvent = async (collectionId, eventType) => {
-  const webhooks = await storage.getWebhooks(collectionId);
+  const webhooks = await storageModule.getWebhooks(collectionId);
   return webhooks.filter((webhook) => webhook.events.includes(eventType));
 };
 
@@ -21,7 +22,7 @@ const notifyWebhooks = async (collectionId, eventType, data) => {
     return;
   }
 
-  const collection = await storage.getCollectionById(collectionId);
+  const collection = await collectionsService.getCollectionById(collectionId);
   if (!collection) {
     console.error(
       `Collection not found for webhook notification: ${collectionId}`

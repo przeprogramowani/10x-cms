@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Base directory for media storage
-const MEDIA_DIR = path.join(process.cwd(), "src/server/data");
+const MEDIA_DIR = path.join(process.cwd(), "src/modules/media/data");
 const MEDIA_FILE = "media.json";
 const UPLOADS_DIR = path.join(process.cwd(), "public/uploads");
 

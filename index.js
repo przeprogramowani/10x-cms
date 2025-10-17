@@ -1,25 +1,31 @@
 import express from "express";
 import path from "path";
 import {fileURLToPath} from "url";
-import storageModule from "./src/server/storage.js";
-import mediaModule from "./src/server/media.js";
-import apiRoutes from "./src/server/api.js";
-import webhooksModule from "./src/server/webhooks.js";
-import pages from "./src/server/pages.js";
+import mediaModule from "./src/modules/media/media.js";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import fs from "fs";
 import multer from "multer";
+
+import storageModule from "./src/modules/storage/storage.js";
+
+import collectionsApi from "./src/modules/collections/collections.api.js";
+import itemsApi from "./src/modules/items/items.api.js";
+import collectionsViews from "./src/modules/collections/collections.views.js";
+import itemsViews from "./src/modules/items/items.views.js";
+import collectionsRoutes from "./src/modules/collections/collections.routes.js";
+import itemsRoutes from "./src/modules/items/items.routes.js";
+import templatingService from "./src/modules/templating/templating.service.js";
 
 // ESM equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const multerStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, _file, cb) => {
     cb(null, "public/uploads/");
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname);
     cb(null, `${Date.now()}${ext}`);
   },
@@ -30,7 +36,7 @@ const upload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith("image/")) {
       return cb(new Error("Only image files are allowed"));
     }
@@ -50,14 +56,25 @@ app.use(express.static("public"));
 app.use("/images", express.static("public/images"));
 
 // Serve frontend dependencies from node_modules
-app.use("/vendor/bootstrap", express.static(path.join(__dirname, "node_modules/bootstrap")));
-app.use("/vendor/jquery", express.static(path.join(__dirname, "node_modules/jquery")));
-app.use("/vendor/jquery-ui", express.static(path.join(__dirname, "node_modules/jquery-ui-dist")));
+app.use(
+  "/vendor/bootstrap",
+  express.static(path.join(__dirname, "node_modules/bootstrap"))
+);
+app.use(
+  "/vendor/jquery",
+  express.static(path.join(__dirname, "node_modules/jquery"))
+);
+app.use(
+  "/vendor/jquery-ui",
+  express.static(path.join(__dirname, "node_modules/jquery-ui-dist"))
+);
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
 
-app.use("/api", apiRoutes);
+// Public API routes (no auth required)
+app.use("/api/collections", collectionsApi);
+app.use("/api/collections", itemsApi);
 
 app.use((req, res, next) => {
   const cookies = {};
@@ -72,7 +89,7 @@ app.use((req, res, next) => {
 
   req.cookies = cookies;
 
-  res.setCookie = function (name, value, options = {}) {
+  res.cookie = function (name, value, options = {}) {
     let cookieStr = `${name}=${value}`;
 
     if (options.maxAge) cookieStr += `; Max-Age=${options.maxAge}`;
@@ -94,7 +111,78 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
-app.get("/webhooks", requireAuth, pages.renderWebhooksPage);
+// Webhook routes
+const renderWebhooksPage = async (req, res) => {
+  try {
+    let webhooksListHtml = "";
+    const collections = await storageModule.getCollections();
+    let collectionsDropdownHtml = "";
+
+    if (collections.length === 0) {
+      collectionsDropdownHtml =
+        '<option value="">No collections available</option>';
+    } else {
+      collectionsDropdownHtml =
+        '<option value="">Select collection...</option>';
+      for (const collection of collections) {
+        collectionsDropdownHtml += `<option value="${collection.id}">${collection.name}</option>`;
+      }
+
+      let hasWebhooks = false;
+      for (const collection of collections) {
+        const webhooks = await storageModule.getWebhooks(collection.id);
+
+        if (webhooks.length > 0) {
+          hasWebhooks = true;
+          webhooksListHtml += '<div class="mb-4">';
+          webhooksListHtml += `<h6 class="mb-3">${collection.name}</h6>`;
+
+          for (const webhook of webhooks) {
+            webhooksListHtml += `
+              <div class="card mb-2">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <p class="mb-1"><strong>URL:</strong> ${webhook.url}</p>
+                      <p class="mb-0"><small class="text-muted">Events: ${webhook.events.join(
+                        ", "
+                      )}</small></p>
+                    </div>
+                    <button class="btn btn-danger btn-sm delete-webhook" data-id="${
+                      webhook.id
+                    }">Delete</button>
+                  </div>
+                </div>
+              </div>`;
+          }
+
+          webhooksListHtml += "</div>";
+        }
+      }
+
+      if (!hasWebhooks) {
+        webhooksListHtml =
+          "<p class='alert alert-info text-dark'>No webhooks configured yet.</p>";
+      }
+    }
+
+    const content = templatingService.renderPage("webhooks", req, {
+      webhooksListHtml,
+      collectionsDropdownHtml,
+    });
+
+    if (!content) {
+      return res.status(500).send("Error loading template");
+    }
+
+    res.send(content);
+  } catch (error) {
+    console.error("Error loading webhooks page:", error);
+    res.status(500).send("Error loading webhooks");
+  }
+};
+
+app.get("/webhooks", requireAuth, renderWebhooksPage);
 
 app.post("/api/webhooks", requireAuth, async (req, res) => {
   try {
@@ -134,151 +222,32 @@ app.delete("/api/webhooks/:id", requireAuth, async (req, res) => {
   }
 });
 
-app.get("/collections", requireAuth, pages.renderCollectionsPage);
+// Collections and Items page routes
+app.get("/collections", requireAuth, collectionsViews.renderCollectionsPage);
+app.get("/collections/:id", requireAuth, itemsViews.renderCollectionPage);
 
-app.get("/collections/:id", requireAuth, pages.renderCollectionPage);
+// Auth-protected API routes for collections and items
+app.use("/api/collections", requireAuth, collectionsRoutes);
+app.use("/api/collections", requireAuth, itemsRoutes);
 
-// API routes for collections
-app.post("/api/collections", requireAuth, async (req, res) => {
-  try {
-    const {name, fieldName, fieldType} = req.body;
-    const schema = {};
+// Simple page rendering helper
+const renderSimplePage = (req, res) => {
+  const pageName = req.path === "/" ? "home" : req.path.substring(1);
+  const content = templatingService.renderPage(pageName, req);
 
-    if (fieldName && fieldType) {
-      fieldName.forEach((field, i) => {
-        schema[field] = fieldType[i];
-      });
-    }
-
-    const collection = await storageModule.createCollection(name, schema);
-    res.json({success: true, collection});
-  } catch (error) {
-    console.error("Error creating collection:", error);
-    res.status(500).json({error: "Error creating collection"});
+  if (!content) {
+    return res.status(500).send("Error loading template");
   }
-});
 
-app.post("/api/collections/:id/items", requireAuth, async (req, res) => {
-  try {
-    const collectionId = req.params.id;
-    const collection = await storageModule.getCollectionById(collectionId);
-
-    if (!collection) {
-      return res.status(404).json({error: "Collection not found"});
-    }
-
-    const addedItem = await storageModule.addItemToCollection(
-      collectionId,
-      req.body
-    );
-
-    try {
-      await webhooksModule.onItemCreated(collectionId, addedItem);
-    } catch (error) {
-      console.error("Error calling webhook for item creation:", error);
-    }
-
-    res.json({success: true, item: addedItem});
-  } catch (error) {
-    console.error("Error creating item:", error);
-    res.status(500).json({error: "Error creating item"});
-  }
-});
-
-app.put(
-  "/api/collections/:collectionId/items/:itemId",
-  requireAuth,
-  async (req, res) => {
-    try {
-      const {collectionId, itemId} = req.params;
-      const collection = await storageModule.getCollectionById(collectionId);
-
-      if (!collection) {
-        return res.status(404).json({error: "Collection not found"});
-      }
-
-      const result = await storageModule.updateItemInCollection(
-        collectionId,
-        itemId,
-        req.body
-      );
-
-      if (!result) {
-        return res.status(404).json({error: "Item not found"});
-      }
-
-      try {
-        await webhooksModule.onItemUpdated(collectionId, result);
-      } catch (error) {
-        console.error("Error calling webhook for item update:", error);
-      }
-
-      res.json({success: true, item: result});
-    } catch (error) {
-      console.error("Error updating item:", error);
-      res.status(500).json({error: "Error updating item"});
-    }
-  }
-);
-
-app.delete(
-  "/api/collections/:collectionId/items/:itemId",
-  requireAuth,
-  async (req, res) => {
-    try {
-      const {collectionId, itemId} = req.params;
-
-      const success = await storageModule.deleteItemFromCollection(
-        collectionId,
-        itemId
-      );
-
-      if (success) {
-        // Wait for webhook but handle errors silently
-        try {
-          await webhooksModule.onItemDeleted(collectionId, itemId);
-        } catch (error) {
-          console.error("Error calling webhook for item deletion:", error);
-        }
-
-        res.json({success: true, message: "Item deleted successfully"});
-      } else {
-        res.status(404).json({error: "Collection or item not found"});
-      }
-    } catch (error) {
-      console.error("Error deleting item:", error);
-      res.status(500).json({error: "Error deleting item"});
-    }
-  }
-);
-
-app.delete("/api/collections/:id", requireAuth, async (req, res) => {
-  try {
-    const {id: collectionId} = req.params;
-
-    if (!collectionId) {
-      return res.status(400).json({error: "Collection ID is required"});
-    }
-
-    const success = await storageModule.deleteCollection(collectionId);
-
-    if (success) {
-      res.json({success: true, message: "Collection deleted successfully"});
-    } else {
-      res.status(404).json({error: "Collection not found"});
-    }
-  } catch (error) {
-    console.error("Error deleting collection:", error);
-    res.status(500).json({error: "Error deleting collection"});
-  }
-});
+  res.send(content);
+};
 
 // Login routes
 app.get("/login", (req, res) => {
   if (req.cookies.auth) {
     return res.redirect("/home");
   }
-  pages.renderSimplePage(req, res);
+  renderSimplePage(req, res);
 });
 
 app.post("/login", (req, res) => {
@@ -288,7 +257,7 @@ app.post("/login", (req, res) => {
     username === process.env.ADMIN_USERNAME &&
     password === process.env.ADMIN_PASSWORD
   ) {
-    res.setCookie("auth", "authenticated", {
+    res.cookie("auth", "authenticated", {
       maxAge: 3600, // 1 hour
       path: "/",
       httpOnly: true,
@@ -300,8 +269,8 @@ app.post("/login", (req, res) => {
   return res.status(401).json({error: "Invalid credentials"});
 });
 
-app.get("/logout", (req, res) => {
-  res.setCookie("auth", "", {
+app.get("/logout", (_req, res) => {
+  res.cookie("auth", "", {
     maxAge: -1,
     path: "/",
   });
@@ -310,35 +279,80 @@ app.get("/logout", (req, res) => {
 });
 
 // Protected routes
-app.get("/", requireAuth, pages.renderSimplePage);
-app.get("/home", requireAuth, pages.renderSimplePage);
+app.get("/", requireAuth, renderSimplePage);
+app.get("/home", requireAuth, renderSimplePage);
 
 // Media Library routes
-app.get("/media", requireAuth, pages.renderMediaPage);
+const renderMediaPage = (req, res) => {
+  const mediaItems = mediaModule.getAllMedia();
+  let mediaHtml = "";
+
+  if (mediaItems.length === 0) {
+    mediaHtml =
+      '<div class="col-12"><p class="alert alert-info text-dark">No images found. Upload your first image to get started.</p></div>';
+  } else {
+    mediaItems.forEach((item) => {
+      mediaHtml += `
+        <div class="col-md-3 mb-4">
+          <div class="card h-100">
+            <img src="${item.path}" class="card-img-top" alt="${
+        item.originalname
+      }" style="height: 150px; object-fit: cover;">
+            <div class="card-body">
+              <!-- @mediaId:${item.id} -->
+              <h6 class="card-title text-truncate">${item.originalname}</h6>
+              <p class="card-text small text-muted">${
+                item.description || "No description"
+              }</p>
+              <div class="d-flex justify-content-between">
+                <button class="btn btn-sm btn-primary preview-image-btn"
+                  data-id="${item.id}"
+                  data-path="${item.path}"
+                  data-name="${item.originalname}"
+                  data-description="${item.description || ""}">Preview</button>
+                <button class="btn btn-sm btn-danger delete-image-btn" data-id="${
+                  item.id
+                }">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+
+  const variables = {
+    mediaHtml,
+  };
+
+  const content = templatingService.renderPage("media", req, variables);
+
+  if (!content) {
+    return res.status(500).send("Error loading template");
+  }
+
+  res.send(content);
+};
+
+app.get("/media", requireAuth, renderMediaPage);
 
 // API routes for media
-app.post(
-  "/api/media",
-  requireAuth,
-  upload.single("image"),
-  (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({error: "No image file uploaded"});
-      }
-
-      const description = req.body.description || "";
-      const mediaItem = mediaModule.addMedia(req.file, description);
-
-      res.json({success: true, media: mediaItem});
-    } catch (err) {
-      console.error("Error uploading image:", err);
-      res.status(500).json({error: `Error uploading image: ${err.message}`});
+app.post("/api/media", requireAuth, upload.single("image"), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({error: "No image file uploaded"});
     }
-  }
-);
 
-app.get("/api/media", requireAuth, (req, res) => {
+    const description = req.body.description || "";
+    const mediaItem = mediaModule.addMedia(req.file, description);
+
+    res.json({success: true, media: mediaItem});
+  } catch (err) {
+    console.error("Error uploading image:", err);
+    res.status(500).json({error: `Error uploading image: ${err.message}`});
+  }
+});
+
+app.get("/api/media", requireAuth, (_req, res) => {
   try {
     const mediaItems = mediaModule.getAllMedia();
     res.json({success: true, media: mediaItems});
@@ -374,7 +388,7 @@ app.delete("/api/media/:id", requireAuth, (req, res) => {
     mediaModule.initializeMediaStorage();
 
     // Start server
-    const server = app.listen(3000, () => {
+    app.listen(3000, () => {
       console.log("Server is running on http://localhost:3000");
     });
   } catch (error) {

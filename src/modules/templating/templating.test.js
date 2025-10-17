@@ -1,6 +1,5 @@
 import {expect} from "chai";
-import path from "path";
-import templating from "./templating.js";
+import templatingService from "./templating.service.js";
 
 describe("Templating Engine", () => {
   describe("parseMetaTags", () => {
@@ -11,7 +10,7 @@ describe("Templating Engine", () => {
         "Some content",
       ].join("\n");
 
-      const meta = templating.parseMetaTags(content);
+      const meta = templatingService.parseMetaTags(content);
       expect(meta).to.be.an("object");
       expect(meta.title).to.equal("Home Page");
       expect(meta.layout).to.equal("main");
@@ -19,7 +18,7 @@ describe("Templating Engine", () => {
 
     it("should return empty object when no meta tags", () => {
       const content = "Just some content\nwithout meta tags";
-      const meta = templating.parseMetaTags(content);
+      const meta = templatingService.parseMetaTags(content);
       expect(meta).to.be.an("object");
       expect(Object.keys(meta)).to.have.length(0);
     });
@@ -33,7 +32,7 @@ describe("Templating Engine", () => {
         year: 2014,
       };
 
-      const result = templating.renderTemplate(template, variables);
+      const result = templatingService.renderTemplate(template, variables);
       expect(result).to.equal("Hello John! The year is 2014.");
     });
 
@@ -46,10 +45,10 @@ describe("Templating Engine", () => {
         "End",
       ].join("\n");
 
-      const resultTrue = templating.renderTemplate(template, {
+      const resultTrue = templatingService.renderTemplate(template, {
         showGreeting: true,
       });
-      const resultFalse = templating.renderTemplate(template, {
+      const resultFalse = templatingService.renderTemplate(template, {
         showGreeting: false,
       });
 
