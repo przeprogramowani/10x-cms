@@ -51,17 +51,8 @@
     "skipLibCheck": true,
 
     /* Advanced */
-    "types": ["node"]
+    "types": ["node", "vitest/globals"]
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.js",
-    "index.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.test.ts",
-    "**/*.test.js"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.js", "index.ts"],
+  "exclude": ["node_modules", "dist"]
 }

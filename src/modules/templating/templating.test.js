@@ -1,4 +1,4 @@
-import {expect} from "chai";
+import {describe, it, expect} from "vitest";
 import templatingService from "./templating.service.js";
 
 describe("Templating Engine", () => {
@@ -11,16 +11,16 @@ describe("Templating Engine", () => {
       ].join("\n");
 
       const meta = templatingService.parseMetaTags(content);
-      expect(meta).to.be.an("object");
-      expect(meta.title).to.equal("Home Page");
-      expect(meta.layout).to.equal("main");
+      expect(meta).toBeTypeOf("object");
+      expect(meta.title).toBe("Home Page");
+      expect(meta.layout).toBe("main");
     });
 
     it("should return empty object when no meta tags", () => {
       const content = "Just some content\nwithout meta tags";
       const meta = templatingService.parseMetaTags(content);
-      expect(meta).to.be.an("object");
-      expect(Object.keys(meta)).to.have.length(0);
+      expect(meta).toBeTypeOf("object");
+      expect(Object.keys(meta)).toHaveLength(0);
     });
   });
 
@@ -33,7 +33,7 @@ describe("Templating Engine", () => {
       };
 
       const result = templatingService.renderTemplate(template, variables);
-      expect(result).to.equal("Hello John! The year is 2014.");
+      expect(result).toBe("Hello John! The year is 2014.");
     });
 
     it("should process conditional blocks correctly", () => {
@@ -52,8 +52,8 @@ describe("Templating Engine", () => {
         showGreeting: false,
       });
 
-      expect(resultTrue).to.include("Hello!");
-      expect(resultFalse).to.not.include("Hello!");
+      expect(resultTrue).toContain("Hello!");
+      expect(resultFalse).not.toContain("Hello!");
     });
   });
 });
